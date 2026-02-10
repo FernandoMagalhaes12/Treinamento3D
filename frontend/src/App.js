@@ -75,6 +75,8 @@ function App() {
   };
 
   const handleStartSimulation = async () => {
+    if (!currentScenario) return;
+    
     try {
       // Create simulation in backend
       const response = await axios.post(`${API}/simulations`, {
