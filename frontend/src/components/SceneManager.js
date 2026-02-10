@@ -1,19 +1,15 @@
-import React, { useRef, useState } from 'react';
+import React from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
-import TestModel from './models/TestModel';
 import GeneratorModel from './models/GeneratorModel';
 import CompressorModel from './models/CompressorModel';
 import ConveyorModel from './models/ConveyorModel';
-import Lighting from './Lighting';
 import useSimulationStore from '../store/simulationStore';
 
 const SceneManager = () => {
   const currentScenario = useSimulationStore(state => state.currentScenario);
-  const [cameraPosition] = useState([4, 3, 5]);
 
   const renderModel = () => {
-    if (!currentScenario) return <TestModel />;
+    if (!currentScenario) return null;
     
     switch (currentScenario.id) {
       case 'gen-diesel':
@@ -23,28 +19,22 @@ const SceneManager = () => {
       case 'conveyor':
         return <ConveyorModel />;
       default:
-        return <TestModel />;
+        return <GeneratorModel />;
     }
   };
 
   return (
     <Canvas
-      shadows
-      gl={{ antialias: true, alpha: false }}
+      camera={{ position: [4, 3, 5], fov: 45 }}
       style={{ background: '#09090b' }}
-      onCreated={() => console.log('Canvas created successfully')}
     >
-      <PerspectiveCamera makeDefault position={cameraPosition} fov={45} />
-      <OrbitControls
-        enablePan={true}
-        enableZoom={true}
-        enableRotate={true}
-        minDistance={3}
-        maxDistance={15}
-        maxPolarAngle={Math.PI / 2}
-        minPolarAngle={Math.PI / 6}
-      />
-      <Lighting />
+      {/* Lights */}
+      <ambientLight intensity={0.4} />
+      <directionalLight position={[5, 10, 5]} intensity={1.2} castShadow />
+      <pointLight position={[-5, 5, -5]} intensity={0.5} color="#EAB308" />
+      <hemisphereLight args={['#ffffff', '#444444', 0.6]} />
+      
+      {/* Model */}
       {renderModel()}
     </Canvas>
   );

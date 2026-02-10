@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import SceneManagerSimple from './components/SceneManagerSimple';
+import SceneManager from './components/SceneManager';
 import HUD from './components/HUD';
 import MenuScreen from './components/MenuScreen';
 import ResultsScreen from './components/ResultsScreen';
@@ -127,7 +127,7 @@ function App() {
 
       {screen === 'simulation' && (
         <div className="w-full h-screen relative">
-          <SceneManagerSimple />
+          <SceneManager />
           <HUD />
         </div>
       )}
