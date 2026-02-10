@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -6,67 +6,161 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List
+from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime, timezone
-
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# Create the main app without a prefix
 app = FastAPI()
-
-# Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
-
-# Define Models
-class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
-    
+# Models
+class Scenario(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    name_pt: str
+    name_en: str
+    description_pt: str
+    description_en: str
+    steps: List[str]
+    difficulty: str
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
+class SimulationStep(BaseModel):
+    step_name: str
+    timestamp: str
+    correct: bool
+    expected_order: int
+    actual_order: int
 
-# Add your routes to the router instead of directly to app
+class SimulationCreate(BaseModel):
+    scenario_id: str
+    language: str
+
+class SimulationUpdate(BaseModel):
+    steps_performed: List[SimulationStep]
+    completed: bool = False
+
+class Simulation(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    scenario_id: str
+    language: str
+    steps_performed: List[SimulationStep] = []
+    completed: bool = False
+    score: Optional[float] = None
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    completed_at: Optional[str] = None
+
+class SimulationResult(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    total_steps: int
+    correct_steps: int
+    incorrect_steps: int
+    score: float
+    safety_violations: List[str]
+    time_taken: Optional[str] = None
+
+# Routes
 @api_router.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "LOTO 3D Training API"}
 
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
-    
-    # Convert to dict and serialize datetime to ISO string for MongoDB
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
-    
-    _ = await db.status_checks.insert_one(doc)
-    return status_obj
+@api_router.get("/scenarios", response_model=List[Scenario])
+async def get_scenarios():
+    scenarios = await db.scenarios.find({}, {"_id": 0}).to_list(100)
+    if not scenarios:
+        default_scenarios = [
+            {
+                "id": "gen-diesel",
+                "name_pt": "Gerador Diesel",
+                "name_en": "Diesel Generator",
+                "description_pt": "Procedimento de bloqueio para manutenção de gerador diesel industrial",
+                "description_en": "Lockout procedure for industrial diesel generator maintenance",
+                "steps": ["power_off", "test_energy", "apply_lock", "apply_tag", "open_panel"],
+                "difficulty": "medium"
+            },
+            {
+                "id": "compressor",
+                "name_pt": "Compressor de Ar",
+                "name_en": "Air Compressor",
+                "description_pt": "Bloqueio de compressor de ar com válvulas de pressão",
+                "description_en": "Air compressor lockout with pressure valves",
+                "steps": ["power_off", "release_pressure", "test_energy", "apply_lock", "apply_tag", "open_panel"],
+                "difficulty": "hard"
+            },
+            {
+                "id": "conveyor",
+                "name_pt": "Esteira Transportadora",
+                "name_en": "Conveyor Belt",
+                "description_pt": "Procedimento de bloqueio para esteira transportadora",
+                "description_en": "Lockout procedure for conveyor belt system",
+                "steps": ["stop_belt", "power_off", "test_energy", "apply_lock", "apply_tag", "open_panel"],
+                "difficulty": "easy"
+            }
+        ]
+        await db.scenarios.insert_many(default_scenarios)
+        scenarios = default_scenarios
+    return scenarios
 
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
-    
-    # Convert ISO string timestamps back to datetime objects
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
-    
-    return status_checks
+@api_router.post("/simulations", response_model=Simulation)
+async def create_simulation(sim_create: SimulationCreate):
+    simulation = Simulation(
+        scenario_id=sim_create.scenario_id,
+        language=sim_create.language
+    )
+    doc = simulation.model_dump()
+    await db.simulations.insert_one(doc)
+    return simulation
 
-# Include the router in the main app
+@api_router.patch("/simulations/{sim_id}")
+async def update_simulation(sim_id: str, update: SimulationUpdate):
+    sim = await db.simulations.find_one({"id": sim_id}, {"_id": 0})
+    if not sim:
+        raise HTTPException(status_code=404, detail="Simulation not found")
+    
+    update_data = {"steps_performed": [s.model_dump() for s in update.steps_performed]}
+    
+    if update.completed:
+        correct = sum(1 for s in update.steps_performed if s.correct)
+        total = len(update.steps_performed)
+        score = (correct / total * 100) if total > 0 else 0
+        update_data["completed"] = True
+        update_data["score"] = score
+        update_data["completed_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.simulations.update_one({"id": sim_id}, {"$set": update_data})
+    return {"message": "Simulation updated", "score": update_data.get("score")}
+
+@api_router.get("/simulations/{sim_id}/results", response_model=SimulationResult)
+async def get_simulation_results(sim_id: str):
+    sim = await db.simulations.find_one({"id": sim_id}, {"_id": 0})
+    if not sim:
+        raise HTTPException(status_code=404, detail="Simulation not found")
+    
+    steps = sim.get("steps_performed", [])
+    correct = sum(1 for s in steps if s.get("correct", False))
+    incorrect = len(steps) - correct
+    score = sim.get("score", 0)
+    
+    violations = []
+    for i, step in enumerate(steps):
+        if not step.get("correct", False):
+            violations.append(f"Step {i+1}: {step.get('step_name')} executed out of order")
+    
+    return SimulationResult(
+        total_steps=len(steps),
+        correct_steps=correct,
+        incorrect_steps=incorrect,
+        score=score,
+        safety_violations=violations
+    )
+
 app.include_router(api_router)
 
 app.add_middleware(
@@ -77,7 +171,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
