@@ -1,0 +1,124 @@
+{
+  "project_name": "LOTO-3D-Trainer",
+  "design_philosophy": {
+    "theme": "Industrial Digital Twin",
+    "emotional_tone": "Precise, Hazardous, Educational, Immersive",
+    "visual_style": "Dark Mode Industrial HUD (Heads-Up Display)",
+    "core_principles": [
+      "Safety First: Danger states must be alarmingly visible (Red/Yellow)",
+      "Clarity: Text must be readable against complex 3D backgrounds",
+      "Feedback: Every action (click, lock, tag) must have immediate visual/audio confirmation",
+      "Realism: Use industrial textures and technical typography"
+    ]
+  },
+  "typography": {
+    "font_family": {
+      "headings": "\"Barlow Condensed\", \"Oswald\", sans-serif",
+      "body": "\"Inter\", sans-serif",
+      "code": "\"JetBrains Mono\", monospace"
+    },
+    "scale": {
+      "h1": "text-4xl md:text-5xl font-bold tracking-tight uppercase",
+      "h2": "text-2xl md:text-3xl font-semibold tracking-wide uppercase",
+      "h3": "text-xl font-medium tracking-normal text-muted-foreground",
+      "label": "text-xs font-mono tracking-widest uppercase text-muted-foreground",
+      "body": "text-sm md:text-base leading-relaxed"
+    }
+  },
+  "colors": {
+    "palette": {
+      "background": "#09090b",
+      "surface": "#18181b",
+      "surface_highlight": "#27272a",
+      "primary": "#EAB308", 
+      "primary_foreground": "#000000",
+      "danger": "#EF4444",
+      "success": "#22C55E",
+      "energy_live": "#3B82F6",
+      "energy_off": "#64748B",
+      "text_primary": "#F8FAFC",
+      "text_secondary": "#94A3B8"
+    },
+    "gradients": {
+      "hazard_stripe": "repeating-linear-gradient(45deg, #EAB308, #EAB308 10px, #000000 10px, #000000 20px)",
+      "glass_panel": "linear-gradient(180deg, rgba(24, 24, 27, 0.8) 0%, rgba(9, 9, 11, 0.9) 100%)"
+    },
+    "usage": {
+      "primary": "Action buttons, active tools, highlighting interactive parts",
+      "danger": "Error messages, 'Live' danger zones, accident alerts",
+      "success": "Completed steps, safe state indicators",
+      "energy_live": "Glowing effects on live wires/panels"
+    }
+  },
+  "layout_structure": {
+    "app_shell": "w-full h-screen overflow-hidden bg-background relative flex flex-col",
+    "hud_layer": "absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-4 md:p-6",
+    "interactive_layer": "pointer-events-auto",
+    "sidebar": "w-80 bg-background/90 backdrop-blur-md border-l border-border/50 h-full p-6 overflow-y-auto absolute right-0 top-0 z-20 transform transition-transform duration-300",
+    "bottom_bar": "w-full max-w-3xl mx-auto mb-6 bg-background/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 flex items-center justify-center gap-4 shadow-2xl"
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 rounded-md font-bold uppercase tracking-wider transition-all active:scale-95 shadow-[0_0_15px_rgba(234,179,8,0.3)]",
+      "secondary": "bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 px-4 py-2 rounded-md font-medium transition-all",
+      "tool_icon": "w-14 h-14 rounded-xl border-2 border-white/10 bg-black/40 hover:bg-white/10 hover:border-primary/50 transition-all flex items-center justify-center text-2xl cursor-pointer active:scale-90"
+    },
+    "cards": {
+      "glass": "bg-zinc-950/70 backdrop-blur-xl border border-white/10 shadow-xl rounded-xl"
+    },
+    "feedback": {
+      "hazard_toast": "bg-danger text-white border-l-4 border-black font-bold p-4 shadow-2xl animate-shake",
+      "success_toast": "bg-success text-white border-l-4 border-black font-medium p-4 shadow-lg"
+    }
+  },
+  "three_js_guidelines": {
+    "camera": {
+      "fov": 45,
+      "position": [4, 3, 5],
+      "controls": "OrbitControls with constrained polar angles (no looking from below ground)"
+    },
+    "lighting": {
+      "setup": "AmbientLight (intensity 0.5) + DirectionalLight (Key) + PointLights (Warning indicators)",
+      "environment": "CityNight or Warehouse HDRI (low intensity)"
+    },
+    "interaction": {
+      "hover": "Cursor pointer, object highlight (emissive material intensity boost)",
+      "click": "Camera zoom to focus target, open context menu"
+    },
+    "objects": {
+      "generator_proxy": "Group of meshes: Main body (Box), Control Panel (Box), Pipes (Cylinder), Valve (Torus). Color: Industrial Grey & Safety Orange."
+    }
+  },
+  "assets": {
+    "images": {
+       "hazard_texture": "https://images.unsplash.com/photo-1510416096143-b3f355567e3d?crop=entropy&cs=srgb&fm=jpg&q=85",
+       "metal_texture": "https://images.unsplash.com/photo-1642422007973-df42f1dfc71c?crop=entropy&cs=srgb&fm=jpg&q=85",
+       "logo_placeholder": "https://via.placeholder.com/150x50?text=LOTO+SIM"
+    },
+    "icons": {
+       "lock": "LockKey",
+       "tag": "Tag",
+       "electricity": "Lightning",
+       "valve": "CircleNotch",
+       "reset": "ArrowCounterClockwise"
+    }
+  },
+  "instructions_to_main_agent": [
+    "INSTALL_DEPENDENCIES: `npm install three @react-three/fiber @react-three/drei @react-three/postprocessing framer-motion lucide-react zustand`",
+    "Create a 'Store' using Zustand to manage the simulation state (currentStep, faults, lockedStatus, etc.).",
+    "Use standard HTML/Tailwind for the UI overlay (HUD) and R3F for the 3D scene.",
+    "Do not block the view: Keep UI on edges, leave center open for the 3D model.",
+    "Implement a 'Scenario Manager' that defines the steps for the procedure.",
+    "If no GLTF model is available, BUILD A COMPLEX PRIMITIVE MODEL. Do not just put a single cube. Make it look like a machine (Body + Pipes + Panel + Big Red Button).",
+    "Add 'glitch' or 'noise' effects to the HUD to make it feel like a real camera feed."
+  ],
+  "accessibility": {
+    "contrast": "Ensure HUD text has text-shadow or background blur to be readable over 3D.",
+    "keyboard": "Allow 'Tab' navigation to focus on UI elements.",
+    "reduced_motion": "Disable camera fly-ins if user prefers reduced motion."
+  },
+  "universal_guidelines": {
+    "do_not_use": ["gradients on text", "rounded-full buttons (unless icon only)", "default blue links"],
+    "must_use": ["uppercase labels", "mono font for numbers", "crisp borders"]
+  }
+}
