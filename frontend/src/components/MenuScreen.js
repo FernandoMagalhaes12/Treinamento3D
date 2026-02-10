@@ -38,7 +38,7 @@ const MenuScreen = ({ onStart }) => {
     if (selectedScenario) {
       audioManager.playClick();
       setCurrentScenario(selectedScenario);
-      onStart();
+      onStart(selectedScenario);
     }
   };
 
