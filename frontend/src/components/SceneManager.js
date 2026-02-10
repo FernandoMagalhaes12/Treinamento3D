@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
+import TestModel from './models/TestModel';
 import GeneratorModel from './models/GeneratorModel';
 import CompressorModel from './models/CompressorModel';
 import ConveyorModel from './models/ConveyorModel';
@@ -12,7 +13,7 @@ const SceneManager = () => {
   const [cameraPosition] = useState([4, 3, 5]);
 
   const renderModel = () => {
-    if (!currentScenario) return null;
+    if (!currentScenario) return <TestModel />;
     
     switch (currentScenario.id) {
       case 'gen-diesel':
@@ -22,7 +23,7 @@ const SceneManager = () => {
       case 'conveyor':
         return <ConveyorModel />;
       default:
-        return <GeneratorModel />;
+        return <TestModel />;
     }
   };
 
