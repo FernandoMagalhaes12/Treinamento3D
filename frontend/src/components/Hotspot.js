@@ -48,14 +48,6 @@ const Hotspot = ({ position, stepName, label }) => {
         />
       </mesh>
       
-      {hovered && (
-        <Html center distanceFactor={5}>
-          <div className="bg-black/80 backdrop-blur-sm text-white px-3 py-1 rounded-md text-xs font-mono uppercase tracking-wider border border-yellow-500/50">
-            {label}
-          </div>
-        </Html>
-      )}
-      
       {/* Pulsing ring */}
       <mesh rotation={[Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.15, 0.18, 32]} />
