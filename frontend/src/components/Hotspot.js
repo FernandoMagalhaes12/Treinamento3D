@@ -8,8 +8,6 @@ const Hotspot = ({ position, stepName, label }) => {
   const selectedTool = useSimulationStore(state => state.selectedTool);
   const performStep = useSimulationStore(state => state.performStep);
   const simulationActive = useSimulationStore(state => state.simulationActive);
-  const language = useSimulationStore(state => state.language);
-  const t = useTranslation(language);
 
   const handleClick = () => {
     if (!simulationActive) return;
