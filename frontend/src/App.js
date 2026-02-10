@@ -74,13 +74,17 @@ function App() {
     }, 1500);
   };
 
-  const handleStartSimulation = async () => {
-    if (!currentScenario) return;
+  const handleStartSimulation = async (scenario) => {
+    const scenarioToUse = scenario || currentScenario;
+    if (!scenarioToUse) {
+      console.error('No scenario selected');
+      return;
+    }
     
     try {
       // Create simulation in backend
       const response = await axios.post(`${API}/simulations`, {
-        scenario_id: currentScenario.id,
+        scenario_id: scenarioToUse.id,
         language: language
       });
       setSimulationId(response.data.id);
