@@ -1,8 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { Html } from '@react-three/drei';
 import useSimulationStore from '../store/simulationStore';
 import audioManager from '../utils/audioManager';
-import { useTranslation } from '../utils/translations';
 
 const Hotspot = ({ position, stepName, label }) => {
   const meshRef = useRef();
