@@ -1,15 +1,14 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import * as THREE from 'three';
 import Hotspot from '../Hotspot';
 
 const GeneratorModel = () => {
   const groupRef = useRef();
-  const [rotation, setRotation] = useState(0);
+  const fanRef = useRef();
 
   useFrame((state, delta) => {
-    if (groupRef.current) {
-      setRotation(r => r + delta * 0.1);
+    if (fanRef.current) {
+      fanRef.current.rotation.y += delta * 5;
     }
   });
 
