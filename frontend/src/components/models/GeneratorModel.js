@@ -52,7 +52,7 @@ const GeneratorModel = () => {
       </mesh>
 
       {/* Cooling Fan (animated) */}
-      <mesh position={[0.8, 0.8, 0.8]} rotation={[0, rotation * 5, 0]}>
+      <mesh ref={fanRef} position={[0.8, 0.8, 0.8]}>
         <cylinderGeometry args={[0.3, 0.3, 0.05, 6]} />
         <meshStandardMaterial color="#737373" metalness={0.8} roughness={0.2} />
       </mesh>
