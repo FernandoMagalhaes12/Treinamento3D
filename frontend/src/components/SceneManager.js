@@ -32,6 +32,7 @@ const SceneManager = () => {
       shadows
       gl={{ antialias: true, alpha: false }}
       style={{ background: '#09090b' }}
+      onCreated={() => console.log('Canvas created successfully')}
     >
       <PerspectiveCamera makeDefault position={cameraPosition} fov={45} />
       <OrbitControls
