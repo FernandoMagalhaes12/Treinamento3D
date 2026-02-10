@@ -127,7 +127,7 @@ function App() {
 
       {screen === 'simulation' && (
         <div className="w-full h-screen relative">
-          <SceneManager />
+          <SceneManagerSimple />
           <HUD />
         </div>
       )}
