@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import SceneManager from './components/SceneManager';
+import SceneTest from './components/SceneTest';
 import HUD from './components/HUD';
 import MenuScreen from './components/MenuScreen';
 import ResultsScreen from './components/ResultsScreen';
