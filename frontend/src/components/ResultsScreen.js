@@ -1,13 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import { RotateCcw, Home, AlertTriangle, CheckCircle } from 'lucide-react';
 import useSimulationStore from '../store/simulationStore';
 import { useTranslation } from '../utils/translations';
 import audioManager from '../utils/audioManager';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API_BASE } from '../lib/api';
 
 const ResultsScreen = ({ onRestart, onBackToMenu }) => {
   const language = useSimulationStore(state => state.language);
@@ -18,33 +16,14 @@ const ResultsScreen = ({ onRestart, onBackToMenu }) => {
   const [loading, setLoading] = useState(true);
   const t = useTranslation(language);
 
-  useEffect(() => {
-    if (simulationId) {
-      fetchResults();
-    } else {
-      calculateLocalResults();
-    }
-  }, [simulationId]);
-
-  const fetchResults = async () => {
-    try {
-      const response = await axios.get(`${API}/simulations/${simulationId}/results`);
-      setResults(response.data);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching results:', error);
-      calculateLocalResults();
-    }
-  };
-
-  const calculateLocalResults = () => {
+  const calculateLocalResults = useCallback(() => {
     const correctSteps = stepsPerformed.filter(s => s.correct).length;
     const incorrectSteps = stepsPerformed.length - correctSteps;
     const score = stepsPerformed.length > 0 ? (correctSteps / stepsPerformed.length * 100) : 0;
-    
+
     const violations = stepsPerformed
       .filter(s => !s.correct)
-      .map((s, i) => `${language === 'pt' ? 'Etapa' : 'Step'} ${s.actual_order + 1}: ${t(s.step_name)} ${language === 'pt' ? 'executado fora de ordem' : 'executed out of order'}`);
+      .map((s) => `${language === 'pt' ? 'Etapa' : 'Step'} ${s.actual_order + 1}: ${t(s.step_name)} ${language === 'pt' ? 'executado fora de ordem' : 'executed out of order'}`);
 
     setResults({
       total_steps: stepsPerformed.length,
@@ -54,7 +33,26 @@ const ResultsScreen = ({ onRestart, onBackToMenu }) => {
       safety_violations: violations
     });
     setLoading(false);
-  };
+  }, [stepsPerformed, language, t]);
+
+  const fetchResults = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_BASE}/simulations/${simulationId}/results`);
+      setResults(response.data);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching results:', error);
+      calculateLocalResults();
+    }
+  }, [simulationId, calculateLocalResults]);
+
+  useEffect(() => {
+    if (simulationId) {
+      fetchResults();
+    } else {
+      calculateLocalResults();
+    }
+  }, [simulationId, fetchResults, calculateLocalResults]);
 
   const handleRestart = () => {
     audioManager.playClick();

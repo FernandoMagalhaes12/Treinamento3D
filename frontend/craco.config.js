@@ -9,7 +9,7 @@ const isDevServer = process.env.NODE_ENV !== "production";
 // Environment variable overrides
 const config = {
   enableHealthCheck: process.env.ENABLE_HEALTH_CHECK === "true",
-  enableVisualEdits: isDevServer, // Only enable during dev server
+  enableVisualEdits: false, // Disabled - causing issues with R3F
 };
 
 // Conditionally load visual edits modules only in dev mode
@@ -48,6 +48,43 @@ const webpackConfig = {
     },
     configure: (webpackConfig) => {
 
+      const mediapipePattern = /@mediapipe[\\/]tasks-vision/;
+
+      const excludeMediapipeFromSourceMapLoader = (rules) => {
+        if (!Array.isArray(rules)) return;
+
+        rules.forEach((rule) => {
+          if (rule.oneOf) {
+            excludeMediapipeFromSourceMapLoader(rule.oneOf);
+          }
+
+          const usesSourceMapLoader =
+            (typeof rule.loader === "string" && rule.loader.includes("source-map-loader")) ||
+            (Array.isArray(rule.use) && rule.use.some((entry) => {
+              if (typeof entry === "string") {
+                return entry.includes("source-map-loader");
+              }
+              return Boolean(entry && entry.loader && String(entry.loader).includes("source-map-loader"));
+            }));
+
+          if (!usesSourceMapLoader) return;
+
+          if (!rule.exclude) {
+            rule.exclude = mediapipePattern;
+            return;
+          }
+
+          if (Array.isArray(rule.exclude)) {
+            rule.exclude.push(mediapipePattern);
+            return;
+          }
+
+          rule.exclude = [rule.exclude, mediapipePattern];
+        });
+      };
+
+      excludeMediapipeFromSourceMapLoader(webpackConfig.module?.rules);
+
       // Add ignored patterns to reduce watched directories
         webpackConfig.watchOptions = {
           ...webpackConfig.watchOptions,
@@ -78,6 +115,18 @@ if (config.enableVisualEdits && babelMetadataPlugin) {
 }
 
 webpackConfig.devServer = (devServerConfig) => {
+  const devPort = Number(process.env.PORT || 3000);
+
+  devServerConfig.client = {
+    ...(devServerConfig.client || {}),
+    webSocketURL: {
+      protocol: "ws",
+      hostname: "localhost",
+      port: devPort,
+      pathname: "/ws",
+    },
+  };
+
   // Apply visual edits dev server setup only if enabled
   if (config.enableVisualEdits && setupDevServer) {
     devServerConfig = setupDevServer(devServerConfig);

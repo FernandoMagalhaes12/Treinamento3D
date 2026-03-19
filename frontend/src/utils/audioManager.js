@@ -77,6 +77,14 @@ class AudioManager {
     oscillator.start(this.audioContext.currentTime);
     oscillator.stop(this.audioContext.currentTime + 0.05);
   }
+
+  playShock() {
+    this.init();
+    // Play the actual MP3 file
+    const audio = new Audio('/electric-shock.mp3');
+    audio.volume = 0.8;
+    audio.play().catch(e => console.log('Audio play error:', e));
+  }
 }
 
 export default new AudioManager();

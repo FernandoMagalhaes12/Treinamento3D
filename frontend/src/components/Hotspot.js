@@ -1,17 +1,30 @@
 import React, { useRef, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import useSimulationStore from '../store/simulationStore';
 import audioManager from '../utils/audioManager';
 
-const Hotspot = ({ position, stepName, label }) => {
+const Hotspot = ({ position, stepName, label, onClick, disabled = false }) => {
   const meshRef = useRef();
   const [hovered, setHovered] = useState(false);
-  const selectedTool = useSimulationStore(state => state.selectedTool);
-  const performStep = useSimulationStore(state => state.performStep);
-  const simulationActive = useSimulationStore(state => state.simulationActive);
+  const { selectedTool, performStep, simulationActive } = useSimulationStore(
+    useShallow((state) => ({
+      selectedTool: state.selectedTool,
+      performStep: state.performStep,
+      simulationActive: state.simulationActive,
+    }))
+  );
 
   const handleClick = () => {
-    if (!simulationActive) return;
+    if (!simulationActive || disabled) return;
     
+    // If custom onClick is provided, use it
+    if (onClick) {
+      audioManager.playClick();
+      onClick();
+      return;
+    }
+    
+    // Otherwise use the tool-based logic
     if (selectedTool === stepName) {
       audioManager.playClick();
       performStep(stepName);
@@ -19,7 +32,7 @@ const Hotspot = ({ position, stepName, label }) => {
   };
 
   const handlePointerOver = () => {
-    if (!simulationActive) return;
+    if (!simulationActive || disabled) return;
     setHovered(true);
     audioManager.playHover();
     document.body.style.cursor = 'pointer';
@@ -29,6 +42,11 @@ const Hotspot = ({ position, stepName, label }) => {
     setHovered(false);
     document.body.style.cursor = 'default';
   };
+
+  // Determine color based on state
+  const isActive = onClick ? !disabled : (selectedTool === stepName);
+  const baseColor = disabled ? '#6B7280' : (isActive ? '#22C55E' : '#EAB308');
+  const emissiveColor = disabled ? '#6B7280' : (isActive ? '#22C55E' : '#EAB308');
 
   return (
     <group position={position}>
@@ -40,11 +58,11 @@ const Hotspot = ({ position, stepName, label }) => {
       >
         <sphereGeometry args={[0.12, 16, 16]} />
         <meshStandardMaterial
-          color={selectedTool === stepName ? "#22C55E" : "#EAB308"}
-          emissive={selectedTool === stepName ? "#22C55E" : "#EAB308"}
-          emissiveIntensity={hovered ? 1.5 : 0.8}
+          color={baseColor}
+          emissive={emissiveColor}
+          emissiveIntensity={hovered && !disabled ? 1.5 : 0.8}
           transparent
-          opacity={0.9}
+          opacity={disabled ? 0.4 : 0.9}
         />
       </mesh>
       
@@ -52,13 +70,13 @@ const Hotspot = ({ position, stepName, label }) => {
       <mesh rotation={[Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.15, 0.18, 32]} />
         <meshBasicMaterial
-          color="#EAB308"
+          color={disabled ? '#6B7280' : '#EAB308'}
           transparent
-          opacity={hovered ? 0.8 : 0.4}
+          opacity={hovered && !disabled ? 0.8 : 0.4}
         />
       </mesh>
     </group>
   );
 };
 
-export default Hotspot;
+export default React.memo(Hotspot);

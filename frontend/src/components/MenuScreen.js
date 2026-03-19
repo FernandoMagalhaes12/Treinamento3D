@@ -1,13 +1,76 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Globe } from 'lucide-react';
 import useSimulationStore from '../store/simulationStore';
 import { useTranslation } from '../utils/translations';
 import audioManager from '../utils/audioManager';
+import { API_BASE } from '../lib/api';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+const DEFAULT_SCENARIOS = [
+  {
+    id: 'gen-diesel',
+    name_pt: 'Gerador Diesel',
+    name_en: 'Diesel Generator',
+    description_pt:
+      'Procedimento de bloqueio para manutenção de gerador diesel industrial - Siga os 9 passos do NR10',
+    description_en:
+      'Lockout procedure for industrial diesel generator maintenance - Follow the 9 NR10 steps',
+    steps: [
+      'certify_stop',
+      'consult_matrix',
+      'execute_lockout',
+      'eliminate_residual_energy',
+      'deliver_tag_lock',
+      'confirm_operational_state',
+      'test_effectiveness',
+      'request_release',
+      'fill_tag_confirming',
+    ],
+    difficulty: 'medium',
+  },
+  {
+    id: 'compressor',
+    name_pt: 'Compressor de Ar',
+    name_en: 'Air Compressor',
+    description_pt:
+      'Bloqueio de compressor de ar com válvulas de pressão - Siga os 9 passos do NR10',
+    description_en:
+      'Air compressor lockout with pressure valves - Follow the 9 NR10 steps',
+    steps: [
+      'certify_stop',
+      'consult_matrix',
+      'execute_lockout',
+      'eliminate_residual_energy',
+      'deliver_tag_lock',
+      'confirm_operational_state',
+      'test_effectiveness',
+      'request_release',
+      'fill_tag_confirming',
+    ],
+    difficulty: 'hard',
+  },
+  {
+    id: 'conveyor',
+    name_pt: 'Esteira Transportadora',
+    name_en: 'Conveyor Belt',
+    description_pt:
+      'Procedimento de bloqueio para esteira transportadora - Siga os 9 passos do NR10',
+    description_en: 'Lockout procedure for conveyor belt system - Follow the 9 NR10 steps',
+    steps: [
+      'certify_stop',
+      'consult_matrix',
+      'execute_lockout',
+      'eliminate_residual_energy',
+      'deliver_tag_lock',
+      'confirm_operational_state',
+      'test_effectiveness',
+      'request_release',
+      'fill_tag_confirming',
+    ],
+    difficulty: 'easy',
+  },
+];
 
 const MenuScreen = ({ onStart }) => {
   const language = useSimulationStore(state => state.language);
@@ -19,25 +82,26 @@ const MenuScreen = ({ onStart }) => {
   const [loading, setLoading] = useState(true);
   const t = useTranslation(language);
 
-  useEffect(() => {
-    fetchScenarios();
-  }, []);
-
-  const fetchScenarios = async () => {
+  const fetchScenarios = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/scenarios`);
-      setScenarios(response.data);
-      setLoading(false);
+      const response = await axios.get(`${API_BASE}/scenarios`, { timeout: 2500 });
+      const data = Array.isArray(response.data) ? response.data : [];
+      setScenarios(data.length ? data : DEFAULT_SCENARIOS);
     } catch (error) {
       console.error('Error fetching scenarios:', error);
+      setScenarios(DEFAULT_SCENARIOS);
+    } finally {
       setLoading(false);
     }
-  };
+  }, [setScenarios]);
+
+  useEffect(() => {
+    fetchScenarios();
+  }, [fetchScenarios]);
 
   const handleStart = () => {
     if (selectedScenario) {
       audioManager.playClick();
-      setCurrentScenario(selectedScenario);
       onStart(selectedScenario);
     }
   };
@@ -117,6 +181,8 @@ const MenuScreen = ({ onStart }) => {
                     onClick={() => {
                       audioManager.playClick();
                       setSelectedScenario(scenario);
+                      // Prepare simulation state as early as possible to reduce start latency.
+                      setCurrentScenario(scenario);
                     }}
                     data-testid={`scenario-${scenario.id}`}
                     className={`cursor-pointer p-6 rounded-xl transition-all border-2 ${

@@ -13,9 +13,50 @@ from datetime import datetime, timezone
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-mongo_url = os.environ['MONGO_URL']
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+
+def _get_required_env(var_name: str) -> str:
+    value = os.environ.get(var_name)
+    if not value:
+        raise RuntimeError(f"Required environment variable '{var_name}' is not set")
+    return value
+
+
+def _normalize_origin(origin: str) -> str:
+    return origin.strip().strip('"').strip("'")
+
+
+def _parse_cors_origins() -> tuple[list[str], bool]:
+    default_origins = [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:3002',
+        'http://127.0.0.1:3002',
+    ]
+
+    raw_origins = os.environ.get('CORS_ORIGINS', ','.join(default_origins))
+    parsed_origins = [_normalize_origin(origin) for origin in raw_origins.split(',') if _normalize_origin(origin)]
+    allow_all_origins = '*' in parsed_origins
+
+    app_env = os.environ.get('APP_ENV', 'development').strip().lower()
+    is_dev_env = app_env in {'dev', 'development', 'local'}
+
+    if allow_all_origins and not is_dev_env:
+        logger.warning("CORS_ORIGINS contains '*' outside development; falling back to explicit localhost origins")
+        return default_origins, False
+
+    return (['*'] if allow_all_origins else parsed_origins), allow_all_origins
+
+
+mongo_url = _get_required_env('MONGO_URL')
+db_name = _get_required_env('DB_NAME')
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+db = client[db_name]
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -73,40 +114,67 @@ async def root():
 
 @api_router.get("/scenarios", response_model=List[Scenario])
 async def get_scenarios():
-    scenarios = await db.scenarios.find({}, {"_id": 0}).to_list(100)
-    if not scenarios:
-        default_scenarios = [
-            {
-                "id": "gen-diesel",
-                "name_pt": "Gerador Diesel",
-                "name_en": "Diesel Generator",
-                "description_pt": "Procedimento de bloqueio para manutenção de gerador diesel industrial",
-                "description_en": "Lockout procedure for industrial diesel generator maintenance",
-                "steps": ["power_off", "test_energy", "apply_lock", "apply_tag", "open_panel"],
-                "difficulty": "medium"
-            },
-            {
-                "id": "compressor",
-                "name_pt": "Compressor de Ar",
-                "name_en": "Air Compressor",
-                "description_pt": "Bloqueio de compressor de ar com válvulas de pressão",
-                "description_en": "Air compressor lockout with pressure valves",
-                "steps": ["power_off", "release_pressure", "test_energy", "apply_lock", "apply_tag", "open_panel"],
-                "difficulty": "hard"
-            },
-            {
-                "id": "conveyor",
-                "name_pt": "Esteira Transportadora",
-                "name_en": "Conveyor Belt",
-                "description_pt": "Procedimento de bloqueio para esteira transportadora",
-                "description_en": "Lockout procedure for conveyor belt system",
-                "steps": ["stop_belt", "power_off", "test_energy", "apply_lock", "apply_tag", "open_panel"],
-                "difficulty": "easy"
-            }
-        ]
-        await db.scenarios.insert_many(default_scenarios)
-        scenarios = default_scenarios
-    return scenarios
+    # Always return default scenarios without MongoDB dependency
+    default_scenarios = [
+        {
+            "id": "gen-diesel",
+            "name_pt": "Gerador Diesel",
+            "name_en": "Diesel Generator",
+            "description_pt": "Procedimento de bloqueio para manutenção de gerador diesel industrial - Siga os 9 passos do NR10",
+            "description_en": "Lockout procedure for industrial diesel generator maintenance - Follow the 9 NR10 steps",
+            "steps": [
+                "certify_stop",
+                "consult_matrix",
+                "execute_lockout",
+                "eliminate_residual_energy",
+                "deliver_tag_lock",
+                "confirm_operational_state",
+                "test_effectiveness",
+                "request_release",
+                "fill_tag_confirming"
+            ],
+            "difficulty": "medium"
+        },
+        {
+            "id": "compressor",
+            "name_pt": "Compressor de Ar",
+            "name_en": "Air Compressor",
+            "description_pt": "Bloqueio de compressor de ar com válvulas de pressão - Siga os 9 passos do NR10",
+            "description_en": "Air compressor lockout with pressure valves - Follow the 9 NR10 steps",
+            "steps": [
+                "certify_stop",
+                "consult_matrix",
+                "execute_lockout",
+                "eliminate_residual_energy",
+                "deliver_tag_lock",
+                "confirm_operational_state",
+                "test_effectiveness",
+                "request_release",
+                "fill_tag_confirming"
+            ],
+            "difficulty": "hard"
+        },
+        {
+            "id": "conveyor",
+            "name_pt": "Esteira Transportadora",
+            "name_en": "Conveyor Belt",
+            "description_pt": "Procedimento de bloqueio para esteira transportadora - Siga os 9 passos do NR10",
+            "description_en": "Lockout procedure for conveyor belt system - Follow the 9 NR10 steps",
+            "steps": [
+                "certify_stop",
+                "consult_matrix",
+                "execute_lockout",
+                "eliminate_residual_energy",
+                "deliver_tag_lock",
+                "confirm_operational_state",
+                "test_effectiveness",
+                "request_release",
+                "fill_tag_confirming"
+            ],
+            "difficulty": "easy"
+        }
+    ]
+    return default_scenarios
 
 @api_router.post("/simulations", response_model=Simulation)
 async def create_simulation(sim_create: SimulationCreate):
@@ -163,19 +231,17 @@ async def get_simulation_results(sim_id: str):
 
 app.include_router(api_router)
 
+cors_origins, allow_all_origins = _parse_cors_origins()
+
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_credentials=not allow_all_origins,
+    allow_origins=cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+logger.info("CORS configured with %d origin(s). Wildcard enabled: %s", len(cors_origins), allow_all_origins)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
